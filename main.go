@@ -3,8 +3,10 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
@@ -83,8 +85,11 @@ DONE:
 		}
 		for _, domain := range chain[0].DNSNames {
 			if strings.HasSuffix(domain, ".azmk8s.io") {
-				addr = domain
-				break DONE
+				var err error
+				addr, err = tryAKS(domain)
+				if err == nil {
+					break DONE
+				}
 			}
 		}
 	}
@@ -99,4 +104,26 @@ DONE:
 	oneliners.PrettyJson(nodes.Items)
 
 	time.Sleep(2 * time.Minute)
+}
+
+// ref: https://cloud.google.com/compute/docs/storing-retrieving-metadata
+func tryAKS(domain string) (string, error) {
+	data, err := ioutil.ReadFile("/sys/class/dmi/id/sys_vendor")
+	if err != nil {
+		return "", err
+	}
+	sysVendor := strings.TrimSpace(string(data))
+	fmt.Println("sys_vendor = ", sysVendor)
+
+	data, err = ioutil.ReadFile("/sys/class/dmi/id/product_name")
+	if err != nil {
+		return "", err
+	}
+	productName := strings.TrimSpace(string(data))
+	fmt.Println("product_name = ", productName)
+
+	if sysVendor != "Microsoft Corporation" && productName != "Virtual Machine" {
+		return "", errors.New("not AKS")
+	}
+	return domain, nil
 }
