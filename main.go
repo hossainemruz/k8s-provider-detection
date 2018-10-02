@@ -68,8 +68,10 @@ func main() {
 		log.Println(err)
 		return
 	}
-	fmt.Println("StatusCode: ",resp.StatusCode)
-	fmt.Println(resp)
+
+	for _,cert:=range resp.TLS.PeerCertificates{
+		fmt.Println(cert.DNSNames)
+	}
 
 	oneliners.PrettyJson(resp,"Response")
 
